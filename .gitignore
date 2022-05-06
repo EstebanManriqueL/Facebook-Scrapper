@@ -1,4 +1,4 @@
 credentials.txt
 *.json
-*.html
+bs.html
 __pycache__
