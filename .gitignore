@@ -1,2 +1,4 @@
 credentials.txt
 *.json
+*.html
+__pycache__

@@ -114,7 +114,7 @@ def getToGroup():
     newestPosts()
     groupPageLength = BROWSER.execute_script("window.scrollTo(0, document.body.scrollHeight);var lenOfPage=document.body.scrollHeight;return lenOfPage;")
     
-    scrollDown(10)
+    scrollDown(3)
 
 #Identify posts HTML elements
 def getPosts(scrollCount):
