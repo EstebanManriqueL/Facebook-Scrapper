@@ -3,6 +3,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from bs4 import BeautifulSoup as bs
 import time
 import datetime
+import pytz
 import json
 import re
 import sys
@@ -47,18 +48,24 @@ def seeMoreButtons(comm):
                     click.perform()
             except: pass
 
-def moreCommentsButtons(comments_area):
+def moreCommentsButtons(comments_area, comm):
     """Auxiliary function to search and click for all buttons used to display more comments"""
     while True:
-        #Evitar clicks en videos
-        more_comments_buttons = comments_area.find_elements(By.CSS_SELECTOR, "div.oajrlxb2.g5ia77u1.mtkw9kbi.tlpljxtp.qensuy8j.ppp5ayq2.goun2846.ccm00jje.s44p3ltw.mk2mc5f4.rt8b4zig.n8ej3o3l.agehan2d.sk4xxmp2.rq0escxv.nhd2j8a9.mg4g778l.p7hjln8o.kvgmc6g5.cxmmr5t8.oygrvhab.hcukyx3x.tgvbjcpo.hpfvmrgz.jb3vyjys.qt6c0cv9.a8nywdso.l9j0dhe7.i1ao9s8h.esuyzwwr.f1sip0of.du4w35lb.n00je7tq.arfg74bv.qs9ysxi8.k77z8yql.pq6dq46d.btwxx1t3.abiwlrkh.lzcic4wl.bp9cbjyn.m9osqain.buofh1pr.g5gj957u.p8fzw8mz.gpro0wi8")
+        more_comments_buttons = comments_area.find_elements(By.CSS_SELECTOR, "div.j83agx80.buofh1pr.jklb3kyz.l9j0dhe7")
         if more_comments_buttons == None: return
         if len(more_comments_buttons) == 0:
+            time.sleep(1)
             return
         for button in more_comments_buttons:
-            if any(word in button.text for word in MORE_COMMENTS_TEXTS):
-                ActionChains(BROWSER).move_to_element(button).click().perform()
-                time.sleep(0.5)
+            try:
+                if any(word in button.text for word in MORE_COMMENTS_TEXTS):
+                    ActionChains(BROWSER).move_to_element(button).click().perform()
+                    time.sleep(.6)
+            except: pass
+        try:
+            comments_area = BROWSER.find_element(By.CSS_SELECTOR, "div.cwj9ozl2.tvmbv18p")
+            time.sleep(0.7)
+        except: return
 
 def newestPosts():
     """Auxiliary function to configure FB's group to order posts based on publication date (descending order)"""
@@ -109,7 +116,7 @@ def getToGroup():
     newestPosts()
     groupPageLength = BROWSER.execute_script("window.scrollTo(0, document.body.scrollHeight);var lenOfPage=document.body.scrollHeight;return lenOfPage;")
     
-    scrollDown(1)
+    scrollDown(20)
 
 def getPosts(scrollCount):
     """Identify posts HTML elements"""
@@ -125,10 +132,10 @@ def getPosts(scrollCount):
             user_name, user_link, user_id = extractPostUser(post)
             post_message = getPostMessage(post)
             reactions, shares = extractReactionTotalAndShares(post)
-            total_comments, comments = extractTotalComments(post)
-            scrapped_date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M")
+            total_comments, comments = extractTotalComments(post, date)
+            scrapped_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%Y-%m-%d %H:%M")
             post_info = {"post_text":post_message, "post_link":post_link, "post_id":post_id, "user_name":user_name, "user_link":user_link, "user_id":user_id, 
-                "date":date, "hour":hour, "reactions":reactions, "total_comments":total_comments, "shares":shares, "comments":comments, "scrapped_date":scrapped_date}
+                "date":date, "hour":hour, "reactions":reactions, "total_comments":total_comments, "shares":shares, "firstAndSecondLevelComments":comments, "scrapped_date":scrapped_date} #"total_comments":total_comments, "shares":shares, "comments":comments, 
             post_object.append(post_info)
             if scrollCount != -1:
                 writeInJSON(post_info)
@@ -270,7 +277,7 @@ def extractReactionTotalAndShares(comm):
         total_shares = int(total_shares[0])
     return total_reactions, total_shares
 
-def extractTotalComments(comm):
+def extractTotalComments(comm, date):
     """Extract total amount of comments, as well as its information"""
     total_comments = 0
     comments = []
@@ -292,7 +299,7 @@ def extractTotalComments(comm):
     elif total_comments > 0 and total_comments < 100:
         defineAllComments(comm)
         time.sleep(1)
-        comments = extractPostComments(comm)
+        comments = extractPostComments(comm, date)
     return total_comments, comments
 
 def defineAllComments(comm):
@@ -312,12 +319,12 @@ def defineAllComments(comm):
         ActionChains(BROWSER).move_to_element(comment_list_button[0]).click().perform()
     except: pass
 
-def extractPostComments(comm):
+def extractPostComments(comm, date):
     """Function to extract information from comments regarding any post"""
     comments_area = comm.find_element(By.CSS_SELECTOR, "div.cwj9ozl2.tvmbv18p")
     post_comments = list()
     seeMoreButtons(comments_area)
-    moreCommentsButtons(comments_area)
+    moreCommentsButtons(comments_area, comm)
     comments_list = comments_area.find_element(By.TAG_NAME, "ul")
     comments = comments_list.find_elements(By.TAG_NAME, "li")
     for comment in comments:
@@ -325,17 +332,48 @@ def extractPostComments(comm):
         comment_reactions = 0
         comment_text_components = ""
         if (len(comment.text.splitlines()) > 1):
+            date_component = comment.find_element(By.CLASS_NAME, "o22cckgh.q9uorilb.bo9p93cb.oygrvhab.kkf49tns.l66bhrea.linoseic")
+            estimated_date = extractCommentEstimatedDate(date_component, date)
             comment_author = comment.text.splitlines()[0]
             comment_text_components = comment.text.splitlines()[1:-2]
+            try:
+                comment_text = comment.find_element(By.CSS_SELECTOR, "div.ecm0bbzt.e5nlhep0.a8c37x1j").text
+            except: comment_text = ""
             try:
                 comment_reactions = int(comment_text_components[-1])
             except:
                 if len(comment.find_elements(By.CSS_SELECTOR, "div.bp9cbjyn.j83agx80.r9r71o1u.jwdofwj8.n8tt0mok.r8blr3vg.hyh9befq.hn33210v.jkio9rs9.e72ty7fz.qlfml3jp.inkptoze.qmr60zad.hm271qws")) > 0:
                     comment_reactions = 1
                 else: pass
-            comment_text = ' '.join(comment_text_components)
-            post_comments.append({"author":comment_author, "text":comment_text, "reactions":comment_reactions})
+            post_comments.append({"author":comment_author, "text":comment_text, "reactions":comment_reactions, "estimated_date":estimated_date})
     return post_comments
+
+def extractCommentEstimatedDate(date_component, date):
+    """This function will calculate the estimated date in which every registered comment was posted"""
+    comment_date = ""
+    text = re.search(COMMENT_DATE_REGEX, date_component.text).group()
+    quantity_time = int(text.split()[0])
+    date = datetime.datetime.strptime(date, '%d/%m/%Y')
+    if "año" in text or "y" in text:
+        comment_date = (datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")) - datetime.timedelta(quantity_time*365))
+        comment_date = comment_date.strftime("%d/%m/%Y")
+    elif "sem" in text or "wk" in text:
+        comment_date = (datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")) - datetime.timedelta(quantity_time*7))
+        comment_date = comment_date.strftime("%d/%m/%Y")
+    elif "d" in text:
+        comment_date = (datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")) - datetime.timedelta(quantity_time))
+        comment_date = comment_date.strftime("%d/%m/%Y")
+    elif "h" in text:
+        current_hour = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%H")
+        current_hour = int(current_hour)
+        if current_hour - quantity_time < 0:
+            comment_date = (datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")) - datetime.timedelta(1))
+            comment_date = comment_date.strftime("%d/%m/%Y")
+        else: comment_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%d/%m/%Y")
+    else: 
+        comment_date = (datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")) - datetime.timedelta(quantity_time*30))
+        comment_date = comment_date.strftime("%d/%m/%Y")
+    return comment_date
 
 def unifyingFunctions():
     """Unique function to be executed in order for the scrapper to work"""

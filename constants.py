@@ -8,10 +8,10 @@ OPTION.add_argument("start-maximized")
 OPTION.add_argument("--disable-extensions")
 OPTION.add_argument("--disable-notifications")
 OPTION.add_argument("--log-level=3")
-OPTION.add_argument("--headless")
+#OPTION.add_argument("--headless")
 BROWSER = webdriver.Chrome(executable_path="./chromedriver", options=OPTION)
 
-TEST_GROUP = "https://www.facebook.com/groups/1405665609742213"
+TEST_GROUP = "https://www.facebook.com/groups/681316119297894"
 
 PAID_PARTNERSHIPS_WORDS = ["Paid", "partnership", "Colaboracion", "pagada"]
 SHARE_COMPONENT_WORDS = ["share", "compartido"]
@@ -28,6 +28,7 @@ USER_ID_REGEX = "[0-9]{6,18}"
 DATE_DAY_REGEX = "[0-9]{1,2}"
 DATE_YEAR_REGEX = "[0-9]{4,4}"
 HOUR_REGEX = "[0-9]{1,2}:[0-9]{2,2}"
+COMMENT_DATE_REGEX = "[0-9]{1,2}\s[a-zñ]{1,3}"
 
 MONTHS_DICTONARY = {
     "January/Enero":"01",
