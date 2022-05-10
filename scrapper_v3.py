@@ -48,7 +48,7 @@ def seeMoreButtons(comm):
                     click.perform()
             except: pass
 
-def moreCommentsButtons(comments_area, comm):
+def moreCommentsButtons(comments_area):
     """Auxiliary function to search and click for all buttons used to display more comments"""
     while True:
         more_comments_buttons = comments_area.find_elements(By.CSS_SELECTOR, "div.j83agx80.buofh1pr.jklb3kyz.l9j0dhe7")
@@ -66,6 +66,14 @@ def moreCommentsButtons(comments_area, comm):
             comments_area = BROWSER.find_element(By.CSS_SELECTOR, "div.cwj9ozl2.tvmbv18p")
             time.sleep(0.7)
         except: return
+
+def extractCommentTotalReactions(reactions_component):
+    """Auxiliary function to extract total number of reactions from any comment"""
+    try:
+        comment_text_components = reactions_component.find_element(By.CSS_SELECTOR, "div.bp9cbjyn.fni8adji.hgaippwi.fykbt5ly.ns4ygwem.j83agx80.r9r71o1u.gl3lb2sf.jwdofwj8.n8tt0mok.r8blr3vg.hyh9befq.hn33210v.jkio9rs9")
+        return int(comment_text_components.text)
+        #print("Numero de reacciones es de: ", int(comment_text_components.text))
+    except: return 1 #print("Numero de reacciones es de 1")
 
 def newestPosts():
     """Auxiliary function to configure FB's group to order posts based on publication date (descending order)"""
@@ -116,7 +124,7 @@ def getToGroup():
     newestPosts()
     groupPageLength = BROWSER.execute_script("window.scrollTo(0, document.body.scrollHeight);var lenOfPage=document.body.scrollHeight;return lenOfPage;")
     
-    scrollDown(20)
+    scrollDown(40)
 
 def getPosts(scrollCount):
     """Identify posts HTML elements"""
@@ -135,7 +143,7 @@ def getPosts(scrollCount):
             total_comments, comments = extractTotalComments(post, date)
             scrapped_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%Y-%m-%d %H:%M")
             post_info = {"post_text":post_message, "post_link":post_link, "post_id":post_id, "user_name":user_name, "user_link":user_link, "user_id":user_id, 
-                "date":date, "hour":hour, "reactions":reactions, "total_comments":total_comments, "shares":shares, "firstAndSecondLevelComments":comments, "scrapped_date":scrapped_date} #"total_comments":total_comments, "shares":shares, "comments":comments, 
+                "date":date, "hour":hour, "reactions":reactions, "shares":shares, "total_comments":total_comments,  "comments":comments, "scrapped_date":scrapped_date} 
             post_object.append(post_info)
             if scrollCount != -1:
                 writeInJSON(post_info)
@@ -186,12 +194,12 @@ def extractPostLinkId(comm):
                 try:
                     BROWSER.execute_script("window.scrollBy(0, -40);")
                     ActionChains(BROWSER).move_to_element(date_element).perform()
-                    time.sleep(2)
+                    time.sleep(3)
                     date_html_component = BROWSER.find_element(By.CSS_SELECTOR, "div.j34wkznp.qp9yad78.pmk7jnqg.kr520xx4.hzruof5a")
                 except:
                     BROWSER.execute_script("window.scrollBy(0, -100);")
                     ActionChains(BROWSER).move_to_element(date_element).perform()
-                    time.sleep(2)
+                    time.sleep(3)
                     date_html_component = BROWSER.find_element(By.CSS_SELECTOR, "div.j34wkznp.qp9yad78.pmk7jnqg.kr520xx4.hzruof5a")
                     
                 date, hour = extractPostDateHour(str(date_html_component.text))
@@ -321,30 +329,30 @@ def defineAllComments(comm):
 
 def extractPostComments(comm, date):
     """Function to extract information from comments regarding any post"""
+    ActionChains(BROWSER).move_to_element(comm)
     comments_area = comm.find_element(By.CSS_SELECTOR, "div.cwj9ozl2.tvmbv18p")
     post_comments = list()
     seeMoreButtons(comments_area)
-    moreCommentsButtons(comments_area, comm)
+    moreCommentsButtons(comments_area)
+    comments_area = comm.find_element(By.CSS_SELECTOR, "div.cwj9ozl2.tvmbv18p")
     comments_list = comments_area.find_element(By.TAG_NAME, "ul")
     comments = comments_list.find_elements(By.TAG_NAME, "li")
     for comment in comments:
         comment_author = ""
         comment_reactions = 0
-        comment_text_components = ""
         if (len(comment.text.splitlines()) > 1):
             date_component = comment.find_element(By.CLASS_NAME, "o22cckgh.q9uorilb.bo9p93cb.oygrvhab.kkf49tns.l66bhrea.linoseic")
             estimated_date = extractCommentEstimatedDate(date_component, date)
             comment_author = comment.text.splitlines()[0]
-            comment_text_components = comment.text.splitlines()[1:-2]
             try:
                 comment_text = comment.find_element(By.CSS_SELECTOR, "div.ecm0bbzt.e5nlhep0.a8c37x1j").text
             except: comment_text = ""
             try:
-                comment_reactions = int(comment_text_components[-1])
+                comment_reactions_component = comment.find_element(By.CSS_SELECTOR, "div.du4w35lb.pmk7jnqg.lthxh50u.ox23h4wi.kr9hpln1")
+                comment_reactions = extractCommentTotalReactions(comment_reactions_component)
             except:
-                if len(comment.find_elements(By.CSS_SELECTOR, "div.bp9cbjyn.j83agx80.r9r71o1u.jwdofwj8.n8tt0mok.r8blr3vg.hyh9befq.hn33210v.jkio9rs9.e72ty7fz.qlfml3jp.inkptoze.qmr60zad.hm271qws")) > 0:
-                    comment_reactions = 1
-                else: pass
+                pass
+            if comment_text == comment_reactions: comment_reactions = 0
             post_comments.append({"author":comment_author, "text":comment_text, "reactions":comment_reactions, "estimated_date":estimated_date})
     return post_comments
 

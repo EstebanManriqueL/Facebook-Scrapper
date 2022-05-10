@@ -8,10 +8,10 @@ OPTION.add_argument("start-maximized")
 OPTION.add_argument("--disable-extensions")
 OPTION.add_argument("--disable-notifications")
 OPTION.add_argument("--log-level=3")
-#OPTION.add_argument("--headless")
+OPTION.add_argument("--headless")
 BROWSER = webdriver.Chrome(executable_path="./chromedriver", options=OPTION)
 
-TEST_GROUP = "https://www.facebook.com/groups/681316119297894"
+TEST_GROUP = "https://www.facebook.com/groups/1405665609742213"
 
 PAID_PARTNERSHIPS_WORDS = ["Paid", "partnership", "Colaboracion", "pagada"]
 SHARE_COMPONENT_WORDS = ["share", "compartido"]
