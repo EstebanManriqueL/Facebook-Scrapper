@@ -9,6 +9,7 @@ import re
 import sys
 import random
 from constants import *
+from cssSelectors import *
 
 recovered_posts = 0
 posts_selenium_ids = set()
@@ -36,7 +37,7 @@ def login():
 
 def seeMoreButtons(comm):
     """Auxiliary function to search See more buttons"""
-    buttons = comm.find_elements(By.CSS_SELECTOR, "div.oajrlxb2.g5ia77u1.qu0x051f.esr5mh6w.e9989ue4.r7d6kgcz.rq0escxv.nhd2j8a9.nc684nl6.p7hjln8o.kvgmc6g5.cxmmr5t8.oygrvhab.hcukyx3x.jb3vyjys.rz4wbd8a.qt6c0cv9.a8nywdso.i1ao9s8h.esuyzwwr.f1sip0of.lzcic4wl.gpro0wi8.oo9gr5id.lrazzd5p")
+    buttons = comm.find_elements(By.CSS_SELECTOR, SEE_MORE_BUTTONS)
     if buttons:
         for button in buttons:
             try:
@@ -51,7 +52,7 @@ def seeMoreButtons(comm):
 def moreCommentsButtons(comments_area):
     """Auxiliary function to search and click for all buttons used to display more comments"""
     while True:
-        more_comments_buttons = comments_area.find_elements(By.CSS_SELECTOR, "div.j83agx80.buofh1pr.jklb3kyz.l9j0dhe7")
+        more_comments_buttons = comments_area.find_elements(By.CSS_SELECTOR, MORE_COMMENTS_BUTTONS)
         if more_comments_buttons == None: return
         if len(more_comments_buttons) == 0:
             time.sleep(1)
@@ -63,27 +64,26 @@ def moreCommentsButtons(comments_area):
                     time.sleep(.6)
             except: pass
         try:
-            comments_area = BROWSER.find_element(By.CSS_SELECTOR, "div.cwj9ozl2.tvmbv18p")
+            comments_area = BROWSER.find_element(By.CSS_SELECTOR, COMMENTS_AREA)
             time.sleep(0.7)
         except: return
 
 def extractCommentTotalReactions(reactions_component):
     """Auxiliary function to extract total number of reactions from any comment"""
     try:
-        comment_text_components = reactions_component.find_element(By.CSS_SELECTOR, "div.bp9cbjyn.fni8adji.hgaippwi.fykbt5ly.ns4ygwem.j83agx80.r9r71o1u.gl3lb2sf.jwdofwj8.n8tt0mok.r8blr3vg.hyh9befq.hn33210v.jkio9rs9")
+        comment_text_components = reactions_component.find_element(By.CSS_SELECTOR, COMMENT_TEXT_COMPONENT)
         return int(comment_text_components.text)
-        #print("Numero de reacciones es de: ", int(comment_text_components.text))
-    except: return 1 #print("Numero de reacciones es de 1")
+    except: return 1
 
 def newestPosts():
     """Auxiliary function to configure FB's group to order posts based on publication date (descending order)"""
-    newest_posts_possible_buttons = BROWSER.find_elements(By.CSS_SELECTOR, "div.oajrlxb2.gs1a9yip.g5ia77u1.mtkw9kbi.tlpljxtp.qensuy8j.ppp5ayq2.goun2846.ccm00jje.s44p3ltw.mk2mc5f4.rt8b4zig.n8ej3o3l.agehan2d.sk4xxmp2.rq0escxv.nhd2j8a9.mg4g778l.pfnyh3mw.p7hjln8o.kvgmc6g5.cxmmr5t8.oygrvhab.hcukyx3x.tgvbjcpo.hpfvmrgz.jb3vyjys.rz4wbd8a.qt6c0cv9.a8nywdso.l9j0dhe7.i1ao9s8h.esuyzwwr.f1sip0of.du4w35lb.n00je7tq.arfg74bv.qs9ysxi8.k77z8yql.pq6dq46d.btwxx1t3.abiwlrkh.p8dawk7l.lzcic4wl")
+    newest_posts_possible_buttons = BROWSER.find_elements(By.CSS_SELECTOR, NEWEST_POSTS_POSSIBLE_BUTTONS)
     if len(newest_posts_possible_buttons) > 0:
         for button in newest_posts_possible_buttons:
             if button.text in CURRENT_POSTS_TEXTS:
                 ActionChains(BROWSER).move_to_element(button).click().perform()
                 time.sleep(2)
-                comments_options = BROWSER.find_elements(By.CSS_SELECTOR, "div.oajrlxb2.g5ia77u1.qu0x051f.esr5mh6w.e9989ue4.r7d6kgcz.p7hjln8o.esuyzwwr.f1sip0of.n00je7tq.arfg74bv.qs9ysxi8.k77z8yql.abiwlrkh.p8dawk7l.lzcic4wl.dwo3fsh8.rq0escxv.nhd2j8a9.j83agx80.btwxx1t3.pfnyh3mw.opuu4ng7.kj2yoqh6.kvgmc6g5.oygrvhab.pybr56ya.dflh9lhu.f10w8fjw.scb9dxdr.l9j0dhe7.i1ao9s8h.du4w35lb")
+                comments_options = BROWSER.find_elements(By.CSS_SELECTOR, COMMENTS_OPTIONS)
                 for option in comments_options:
                     text = [x for x in NEWEST_POST_TEXTS if x in option.text]
                     if text != []:
@@ -124,11 +124,11 @@ def getToGroup():
     newestPosts()
     groupPageLength = BROWSER.execute_script("window.scrollTo(0, document.body.scrollHeight);var lenOfPage=document.body.scrollHeight;return lenOfPage;")
     
-    scrollDown(40)
+    scrollDown(7)
 
 def getPosts(scrollCount):
     """Identify posts HTML elements"""
-    posts = BROWSER.find_elements(By.CLASS_NAME, "du4w35lb.k4urcfbm.l9j0dhe7.sjgh65i0")
+    posts = BROWSER.find_elements(By.CLASS_NAME, POSTS)
     global recovered_posts
     for post in posts:
         if post.id not in posts_selenium_ids:
@@ -155,13 +155,13 @@ def getPosts(scrollCount):
 
 def getPostMessage(comm):
     """Obtain message contained in the group's post"""
-    texts = comm.find_elements(By.CLASS_NAME, "d2edcug0.hpfvmrgz.qv66sw1b.c1et5uql.lr9zc1uh.a8c37x1j.fe6kdd0r.mau55g9w.c8b282yb.keod5gw0.nxhoafnm.aigsh9s9.d3f4x2em.iv3no6db.jq4qci2q.a3bd9o3v.b1v8xokw.oo9gr5id.hzawbc8m")
-    texts = texts + comm.find_elements(By.XPATH, ".//div[@class='hv4rvrfc dati1w0a jb3vyjys qt6c0cv9']")
-    texts = texts + comm.find_elements(By.XPATH, ".//div[@class='ll8tlv6m j83agx80 jifvfom9 l9j0dhe7 k4urcfbm']")
-    texts_temp = comm.find_elements(By.CSS_SELECTOR, "span.d2edcug0.hpfvmrgz.qv66sw1b.c1et5uql.lr9zc1uh.a8c37x1j.fe6kdd0r.mau55g9w.c8b282yb.keod5gw0.nxhoafnm.aigsh9s9.d3f4x2em.iv3no6db.jq4qci2q.a3bd9o3v.b1v8xokw.oo9gr5id")
+    texts = comm.find_elements(By.CLASS_NAME, TEXTS_CLASS_ONE)
+    texts = texts + comm.find_elements(By.XPATH, TEXTS_CLASS_TWO)
+    texts = texts + comm.find_elements(By.XPATH, TEXTS_CLASS_THREE)
+    texts_temp = comm.find_elements(By.CSS_SELECTOR, POSSIBLE_TEXTS_CLASS_FOUR)
     for text in texts_temp:
         parent_text = text.find_element(By.XPATH, "..")
-        if parent_text.get_attribute("class") != "ecm0bbzt e5nlhep0 a8c37x1j":
+        if parent_text.get_attribute("class") != TEXTS_CLASS_FOUR:
             texts.append(text)
     final_text = ""
     if texts:
@@ -178,7 +178,7 @@ def getPostMessage(comm):
 
 def extractPostLinkId(comm):
     """Obtain post link and id"""
-    link_elements = comm.find_elements(By.CLASS_NAME, "oajrlxb2.g5ia77u1.qu0x051f.esr5mh6w.e9989ue4.r7d6kgcz.rq0escxv.nhd2j8a9.nc684nl6.p7hjln8o.kvgmc6g5.cxmmr5t8.oygrvhab.hcukyx3x.jb3vyjys.rz4wbd8a.qt6c0cv9.a8nywdso.i1ao9s8h.esuyzwwr.f1sip0of.lzcic4wl.gmql0nx0.gpro0wi8.b1v8xokw")
+    link_elements = comm.find_elements(By.CLASS_NAME, LINK_ELEMENTS)
     if link_elements:
         index = 0
         true_date = False
@@ -188,19 +188,19 @@ def extractPostLinkId(comm):
                 ActionChains(BROWSER).move_to_element(date_element).perform()
                 time.sleep(random.randint(3,4))
                 try:      
-                    date_html_component = BROWSER.find_element(By.CSS_SELECTOR, "div.j34wkznp.qp9yad78.pmk7jnqg.kr520xx4.hzruof5a")
+                    date_html_component = BROWSER.find_element(By.CSS_SELECTOR, DATE_COMPONENT)
                 except:
                     pass
                 try:
                     BROWSER.execute_script("window.scrollBy(0, -40);")
                     ActionChains(BROWSER).move_to_element(date_element).perform()
                     time.sleep(3)
-                    date_html_component = BROWSER.find_element(By.CSS_SELECTOR, "div.j34wkznp.qp9yad78.pmk7jnqg.kr520xx4.hzruof5a")
+                    date_html_component = BROWSER.find_element(By.CSS_SELECTOR, DATE_COMPONENT)
                 except:
                     BROWSER.execute_script("window.scrollBy(0, -100);")
                     ActionChains(BROWSER).move_to_element(date_element).perform()
                     time.sleep(3)
-                    date_html_component = BROWSER.find_element(By.CSS_SELECTOR, "div.j34wkznp.qp9yad78.pmk7jnqg.kr520xx4.hzruof5a")
+                    date_html_component = BROWSER.find_element(By.CSS_SELECTOR, DATE_COMPONENT)
                     
                 date, hour = extractPostDateHour(str(date_html_component.text))
                 beautify_data = bs(date_element.get_attribute("href"), 'html.parser')
@@ -220,9 +220,9 @@ def extractPostLinkId(comm):
 
 def extractPostUser(comm):
     """Extract post creator user information"""
-    user_element = comm.find_element(By.CLASS_NAME, "d2edcug0.hpfvmrgz.qv66sw1b.c1et5uql.lr9zc1uh.a8c37x1j.fe6kdd0r.mau55g9w.c8b282yb.keod5gw0.nxhoafnm.aigsh9s9.d3f4x2em.iv3no6db.jq4qci2q.a3bd9o3v.b1v8xokw.m9osqain.hzawbc8m")
+    user_element = comm.find_element(By.CLASS_NAME, USER_ELEMENT)
     if user_element:
-        user_element = user_element.find_element(By.CLASS_NAME, "oajrlxb2.g5ia77u1.qu0x051f.esr5mh6w.e9989ue4.r7d6kgcz.rq0escxv.nhd2j8a9.nc684nl6.p7hjln8o.kvgmc6g5.cxmmr5t8.oygrvhab.hcukyx3x.jb3vyjys.rz4wbd8a.qt6c0cv9.a8nywdso.i1ao9s8h.esuyzwwr.f1sip0of.lzcic4wl.gpro0wi8.oo9gr5id.lrazzd5p")
+        user_element = user_element.find_element(By.CLASS_NAME, USER_ELEMENT_SECOND_INSTANCE)
         if user_element:
             user_name = user_element.text
             beautify_data = bs(user_element.get_attribute("href"), 'html.parser')
@@ -264,15 +264,15 @@ def extractReactionTotalAndShares(comm):
     total_reactions = 0
     total_shares = 0
     try:
-        data_bar = comm.find_element(By.CSS_SELECTOR, "div.bp9cbjyn.m9osqain.j83agx80.jq4qci2q.bkfpd7mw.a3bd9o3v.kvgmc6g5.wkznzc2l.oygrvhab.dhix69tm.jktsbyx5.rz4wbd8a.osnr6wyh.a8nywdso.s1tcr66n")
+        data_bar = comm.find_element(By.CSS_SELECTOR, POST_DATA_BAR)
     except: return total_reactions, total_shares
     try:
-        reactions_component = data_bar.find_element(By.CSS_SELECTOR, "div.oajrlxb2.g5ia77u1.qu0x051f.esr5mh6w.e9989ue4.r7d6kgcz.rq0escxv.nhd2j8a9.p7hjln8o.kvgmc6g5.cxmmr5t8.oygrvhab.hcukyx3x.jb3vyjys.rz4wbd8a.qt6c0cv9.a8nywdso.i1ao9s8h.esuyzwwr.f1sip0of.n00je7tq.arfg74bv.qs9ysxi8.k77z8yql.l9j0dhe7.abiwlrkh.p8dawk7l.lzcic4wl.gmql0nx0.ce9h75a5.ni8dbmo4.stjgntxs.a8c37x1j")
+        reactions_component = data_bar.find_element(By.CSS_SELECTOR, REACTIONS_COMPONENT)
         total_reactions = reactions_component.text.split()
         total_reactions = int(total_reactions[0])
     except:
         pass
-    possible_shares_components = data_bar.find_elements(By.CSS_SELECTOR, "div.gtad4xkn")
+    possible_shares_components = data_bar.find_elements(By.CSS_SELECTOR, SHARE_COMPONENTS)
     shares_component = ""
     for possible_share_component in possible_shares_components:
         if any(word in possible_share_component.text for word in SHARE_COMPONENT_WORDS):
@@ -290,9 +290,9 @@ def extractTotalComments(comm, date):
     total_comments = 0
     comments = []
     try:
-        data_bar = comm.find_element(By.CSS_SELECTOR, "div.bp9cbjyn.m9osqain.j83agx80.jq4qci2q.bkfpd7mw.a3bd9o3v.kvgmc6g5.wkznzc2l.oygrvhab.dhix69tm.jktsbyx5.rz4wbd8a.osnr6wyh.a8nywdso.s1tcr66n")
+        data_bar = comm.find_element(By.CSS_SELECTOR, POST_DATA_BAR)
     except: return total_comments, comments
-    possible_commments_components = data_bar.find_elements(By.CSS_SELECTOR, "div.gtad4xkn")
+    possible_commments_components = data_bar.find_elements(By.CSS_SELECTOR, COMMENTS_COMPONENTS)
     comments_component = None
     for possible_comment_component in possible_commments_components:
         if any(word in possible_comment_component.text for word in COMMENT_COMPONENT_WORDS):
@@ -313,12 +313,12 @@ def extractTotalComments(comm, date):
 def defineAllComments(comm):
     """Auxilairy function to make sure All Comments mode is activated"""
     try:
-        comment_list_buttons = comm.find_elements(By.CSS_SELECTOR, "div.oajrlxb2.g5ia77u1.qu0x051f.esr5mh6w.e9989ue4.r7d6kgcz.rq0escxv.nhd2j8a9.nc684nl6.p7hjln8o.kvgmc6g5.cxmmr5t8.oygrvhab.hcukyx3x.jb3vyjys.rz4wbd8a.qt6c0cv9.a8nywdso.i1ao9s8h.esuyzwwr.f1sip0of.n00je7tq.arfg74bv.qs9ysxi8.k77z8yql.l9j0dhe7.abiwlrkh.p8dawk7l.lzcic4wl")
+        comment_list_buttons = comm.find_elements(By.CSS_SELECTOR, COMMENTS_LIST_BUTTONS)
         comment_list_button = [x for x in comment_list_buttons if x.get_attribute("aria-label") not in PLAY_VIDEO_TEXTS]
         if comment_list_button[0].text not in ALL_COMMENTS_SELECTION:
             ActionChains(BROWSER).move_to_element(comment_list_button[0]).click().perform()
             time.sleep(random.randint(1,2))
-            possible_comment_showing_options = BROWSER.find_elements(By.CSS_SELECTOR, "div.oajrlxb2.g5ia77u1.qu0x051f.esr5mh6w.e9989ue4.r7d6kgcz.p7hjln8o.esuyzwwr.f1sip0of.n00je7tq.arfg74bv.qs9ysxi8.k77z8yql.abiwlrkh.p8dawk7l.lzcic4wl.dwo3fsh8.rq0escxv.nhd2j8a9.j83agx80.btwxx1t3.pfnyh3mw.opuu4ng7.kj2yoqh6.kvgmc6g5.oygrvhab.pybr56ya.dflh9lhu.f10w8fjw.scb9dxdr.l9j0dhe7.i1ao9s8h.du4w35lb.bp9cbjyn")
+            possible_comment_showing_options = BROWSER.find_elements(By.CSS_SELECTOR, POSSIBLE_COMMENT_SHOWING_OPTIONS)
             for option in possible_comment_showing_options:
                 all_comments_text = [x for x in ALL_COMMENTS_SELECTION if x in option.text]
                 if all_comments_text != []:
@@ -330,25 +330,25 @@ def defineAllComments(comm):
 def extractPostComments(comm, date):
     """Function to extract information from comments regarding any post"""
     ActionChains(BROWSER).move_to_element(comm)
-    comments_area = comm.find_element(By.CSS_SELECTOR, "div.cwj9ozl2.tvmbv18p")
+    comments_area = comm.find_element(By.CSS_SELECTOR, COMMENTS_AREA)
     post_comments = list()
     seeMoreButtons(comments_area)
     moreCommentsButtons(comments_area)
-    comments_area = comm.find_element(By.CSS_SELECTOR, "div.cwj9ozl2.tvmbv18p")
+    comments_area = comm.find_element(By.CSS_SELECTOR, COMMENTS_AREA)
     comments_list = comments_area.find_element(By.TAG_NAME, "ul")
     comments = comments_list.find_elements(By.TAG_NAME, "li")
     for comment in comments:
         comment_author = ""
         comment_reactions = 0
         if (len(comment.text.splitlines()) > 1):
-            date_component = comment.find_element(By.CLASS_NAME, "o22cckgh.q9uorilb.bo9p93cb.oygrvhab.kkf49tns.l66bhrea.linoseic")
+            date_component = comment.find_element(By.CLASS_NAME, POST_COMMENT_DATE)
             estimated_date = extractCommentEstimatedDate(date_component, date)
             comment_author = comment.text.splitlines()[0]
             try:
-                comment_text = comment.find_element(By.CSS_SELECTOR, "div.ecm0bbzt.e5nlhep0.a8c37x1j").text
+                comment_text = comment.find_element(By.CSS_SELECTOR, POST_COMMENT_TEXT).text
             except: comment_text = ""
             try:
-                comment_reactions_component = comment.find_element(By.CSS_SELECTOR, "div.du4w35lb.pmk7jnqg.lthxh50u.ox23h4wi.kr9hpln1")
+                comment_reactions_component = comment.find_element(By.CSS_SELECTOR, POST_COMMENT_REACTIONS)
                 comment_reactions = extractCommentTotalReactions(comment_reactions_component)
             except:
                 pass
