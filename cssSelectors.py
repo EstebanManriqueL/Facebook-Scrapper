@@ -23,3 +23,4 @@ POSSIBLE_COMMENT_SHOWING_OPTIONS = "div.oajrlxb2.g5ia77u1.qu0x051f.esr5mh6w.e998
 POST_COMMENT_DATE = "o22cckgh.q9uorilb.bo9p93cb.oygrvhab.kkf49tns.l66bhrea.linoseic"
 POST_COMMENT_TEXT = "div.ecm0bbzt.e5nlhep0.a8c37x1j"
 POST_COMMENT_REACTIONS = "div.du4w35lb.pmk7jnqg.lthxh50u.ox23h4wi.kr9hpln1"
+GROUP_NAME = "a.oajrlxb2.g5ia77u1.qu0x051f.esr5mh6w.e9989ue4.r7d6kgcz.rq0escxv.nhd2j8a9.nc684nl6.p7hjln8o.kvgmc6g5.cxmmr5t8.oygrvhab.hcukyx3x.jb3vyjys.rz4wbd8a.qt6c0cv9.a8nywdso.i1ao9s8h.esuyzwwr.f1sip0of.lzcic4wl.gmql0nx0.gpro0wi8.hnhda86s"
