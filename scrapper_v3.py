@@ -41,7 +41,7 @@ class FacebookScrapper:
 
     def extractGroupName(self):
         group_name_text = BROWSER.find_element(By.CSS_SELECTOR, GROUP_NAME)
-        self.group_name = group_name_text
+        self.group_name = group_name_text.text
 
     def seeMoreButtons(self,comm):
         """Auxiliary function to search See more buttons"""
@@ -133,7 +133,7 @@ class FacebookScrapper:
         self.newestPosts()
         groupPageLength = BROWSER.execute_script("window.scrollTo(0, document.body.scrollHeight);var lenOfPage=document.body.scrollHeight;return lenOfPage;")
         
-        self.scrollDown(7)
+        self.scrollDown(10)
 
     def getPosts(self,scrollCount):
         """Identify posts HTML elements"""
@@ -181,7 +181,7 @@ class FacebookScrapper:
             for text in texts_used:
                 final_text = final_text + text + " "
         if final_text == "": return final_text
-        final_text = ''.join(final_text.splitlines())
+        final_text = ' '.join(final_text.splitlines())
         final_text.strip()
         return final_text[:-1]
 
@@ -277,8 +277,10 @@ class FacebookScrapper:
         except: return total_reactions, total_shares
         try:
             reactions_component = data_bar.find_element(By.CSS_SELECTOR, REACTIONS_COMPONENT)
-            total_reactions = reactions_component.text.split()
-            total_reactions = int(total_reactions[0])
+            if "," in reactions_component.text or "." in reactions_component.text: total_reactions = self.extractOver1KReactionsShares(reactions_component)
+            else:
+                total_reactions = reactions_component.text.split()
+                total_reactions = int(total_reactions[0])
         except:
             pass
         possible_shares_components = data_bar.find_elements(By.CSS_SELECTOR, SHARE_COMPONENTS)
@@ -290,9 +292,23 @@ class FacebookScrapper:
         if shares_component == "":
             pass
         else: 
-            total_shares = shares_component.text.split()
-            total_shares = int(total_shares[0])
+            if "," in shares_component.text or "." in shares_component.text: total_shares = self.extractOver1KReactionsShares(shares_component)
+            else:
+                total_shares = shares_component.text.split()
+                total_shares = int(total_shares[0])
         return total_reactions, total_shares
+
+    def extractOver1KReactionsShares(self,comm):
+        """Function used to extract reaction or share total if it is over 1,000"""
+        ActionChains(BROWSER).move_to_element(comm).perform()
+        time.sleep(random.randint(3,4))
+        component = BROWSER.find_element(By.CSS_SELECTOR, HIDDEN_SHARES_REACTIONS_COMPONENT)
+        total = component.text.splitlines()[-1]
+        total = total.split()
+        total_number = total[1]
+        total_number = total_number.replace(".","")
+        total_number = total_number.replace(",","")
+        return int(total_number)
 
     def extractTotalComments(self, comm, date):
         """Extract total amount of comments, as well as its information"""
@@ -309,31 +325,44 @@ class FacebookScrapper:
                 break
         if comments_component == None: pass
         else:
-            total_comments = comments_component.text.split()
-            total_comments = int(total_comments[0])
-        if total_comments > 100:
-            pass
-        elif total_comments > 0 and total_comments < 100:
-            self.defineAllComments(comm)
-            time.sleep(1)
-            comments = self.extractPostComments(comm, date)
+            if "," in comments_component.text or "." in comments_component.text: total_comments = self.extractCommentsEstimateOver1K(comments_component)
+            else:
+                total_comments = comments_component.text.split()
+                total_comments = int(total_comments[0])
+        if total_comments > 125:
+            self.defineCommentSelection(comm, "relevant")
+        elif total_comments > 0 and total_comments < 150:
+            self.defineCommentSelection(comm, "all")
+        time.sleep(1)
+        comments = self.extractPostComments(comm, date)
         return total_comments, comments
 
-    def defineAllComments(self,comm):
-        """Auxilairy function to make sure All Comments mode is activated"""
+    def extractCommentsEstimateOver1K(self,comm):
+        """Function used to extract estimated comments total if it is over 1,000"""
+        total = comm.text.split()[0]
+        total = float(total.replace(",","."))
+        if "mill" in comm.text:  total = int(total * 1000000)
+        else: total = int(total * 1000)
+        return total
+
+    def defineCommentSelection(self,comm,type):
+        """Auxilairy function to make sure All Comments/Relevant Comments mode is activated"""
+        if type == "all": options = ALL_COMMENTS_SELECTION
+        else: options = RELEVANT_COMMENTS_SELECTION
         try:
             comment_list_buttons = comm.find_elements(By.CSS_SELECTOR, COMMENTS_LIST_BUTTONS)
             comment_list_button = [x for x in comment_list_buttons if x.get_attribute("aria-label") not in PLAY_VIDEO_TEXTS]
-            if comment_list_button[0].text not in ALL_COMMENTS_SELECTION:
+            if comment_list_button[0].text not in options:
                 ActionChains(BROWSER).move_to_element(comment_list_button[0]).click().perform()
                 time.sleep(random.randint(1,2))
                 possible_comment_showing_options = BROWSER.find_elements(By.CSS_SELECTOR, POSSIBLE_COMMENT_SHOWING_OPTIONS)
                 for option in possible_comment_showing_options:
-                    all_comments_text = [x for x in ALL_COMMENTS_SELECTION if x in option.text]
+                    all_comments_text = [x for x in options if x in option.text]
                     if all_comments_text != []:
                         ActionChains(BROWSER).move_to_element(option).click().perform()
                         return
-            ActionChains(BROWSER).move_to_element(comment_list_button[0]).click().perform()
+                ActionChains(BROWSER).move_to_element(comment_list_button[0]).click().perform()
+            else: return
         except: pass
 
     def extractPostComments(self, comm, date):
@@ -350,11 +379,14 @@ class FacebookScrapper:
             comment_author = ""
             comment_reactions = 0
             if (len(comment.text.splitlines()) > 1):
+                self.seeMoreButtons(comment)
                 date_component = comment.find_element(By.CLASS_NAME, POST_COMMENT_DATE)
                 estimated_date = self.extractCommentEstimatedDate(date_component, date)
                 comment_author = comment.text.splitlines()[0]
                 try:
                     comment_text = comment.find_element(By.CSS_SELECTOR, POST_COMMENT_TEXT).text
+                    comment_text = ' '.join(comment_text.splitlines())
+                    comment_text.strip()
                 except: comment_text = ""
                 try:
                     comment_reactions_component = comment.find_element(By.CSS_SELECTOR, POST_COMMENT_REACTIONS)
