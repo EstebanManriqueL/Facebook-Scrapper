@@ -59,8 +59,10 @@ class FacebookScrapper:
 
     def moreCommentsButtons(self,comments_area):
         """Auxiliary function to search and click for all buttons used to display more comments"""
+        comments_area_id = comments_area.get_attribute("id")
         while True:
             more_comments_buttons = comments_area.find_elements(By.CSS_SELECTOR, MORE_COMMENTS_BUTTONS)
+            more_comments_buttons += comments_area.find_elements(By.CSS_SELECTOR, MORE_RELEVANT_COMMENTS_BUTTONS_SECOND_CLASS)
             if more_comments_buttons == None: return
             if len(more_comments_buttons) == 0:
                 time.sleep(1)
@@ -69,11 +71,11 @@ class FacebookScrapper:
                 try:
                     if any(word in button.text for word in MORE_COMMENTS_TEXTS):
                         ActionChains(BROWSER).move_to_element(button).click().perform()
-                        time.sleep(.6)
+                        time.sleep(.8)
                 except: pass
             try:
-                comments_area = BROWSER.find_element(By.CSS_SELECTOR, COMMENTS_AREA)
                 time.sleep(0.7)
+                comments_area = BROWSER.find_element(By.ID, comments_area_id)
             except: return
 
     def extractCommentTotalReactions(self,reactions_component):
@@ -133,7 +135,7 @@ class FacebookScrapper:
         self.newestPosts()
         groupPageLength = BROWSER.execute_script("window.scrollTo(0, document.body.scrollHeight);var lenOfPage=document.body.scrollHeight;return lenOfPage;")
         
-        self.scrollDown(10)
+        self.scrollDown(15)
 
     def getPosts(self,scrollCount):
         """Identify posts HTML elements"""
@@ -329,10 +331,10 @@ class FacebookScrapper:
             else:
                 total_comments = comments_component.text.split()
                 total_comments = int(total_comments[0])
-        if total_comments > 125:
+        """if total_comments > 125:
             self.defineCommentSelection(comm, "relevant")
-        elif total_comments > 0 and total_comments < 150:
-            self.defineCommentSelection(comm, "all")
+        elif total_comments > 0 and total_comments < 150:"""
+        self.defineCommentSelection(comm, "all")
         time.sleep(1)
         comments = self.extractPostComments(comm, date)
         return total_comments, comments
@@ -370,11 +372,13 @@ class FacebookScrapper:
         ActionChains(BROWSER).move_to_element(comm)
         comments_area = comm.find_element(By.CSS_SELECTOR, COMMENTS_AREA)
         post_comments = list()
-        self.seeMoreButtons(comments_area)
-        self.moreCommentsButtons(comments_area)
-        comments_area = comm.find_element(By.CSS_SELECTOR, COMMENTS_AREA)
+        for _ in range(2):
+            self.seeMoreButtons(comments_area)
+            self.moreCommentsButtons(comments_area)
+            comments_area = comm.find_element(By.CSS_SELECTOR, COMMENTS_AREA)
         comments_list = comments_area.find_element(By.TAG_NAME, "ul")
         comments = comments_list.find_elements(By.TAG_NAME, "li")
+        scrapped_comments = 0
         for comment in comments:
             comment_author = ""
             comment_reactions = 0
@@ -395,6 +399,8 @@ class FacebookScrapper:
                     pass
                 if comment_text == comment_reactions: comment_reactions = 0
                 post_comments.append({"author":comment_author, "text":comment_text, "reactions":comment_reactions, "estimated_date":estimated_date})
+                scrapped_comments += 1
+                if scrapped_comments >= 125: return post_comments
         return post_comments
 
     def extractCommentEstimatedDate(self, date_component, date):

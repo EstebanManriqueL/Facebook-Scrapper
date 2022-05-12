@@ -8,7 +8,7 @@ OPTION.add_argument("start-maximized")
 OPTION.add_argument("--disable-extensions")
 OPTION.add_argument("--disable-notifications")
 OPTION.add_argument("--log-level=3")
-#OPTION.add_argument("--headless")
+OPTION.add_argument("--headless")
 BROWSER = webdriver.Chrome(executable_path="./chromedriver", options=OPTION)
 
 TEST_GROUP = "https://www.facebook.com/groups/bandolerosfrases"    #"https://www.facebook.com/groups/1405665609742213" #https://www.facebook.com/groups/681316119297894 #"https://www.facebook.com/groups/bandolerosfrases"
@@ -19,7 +19,7 @@ COMMENT_COMPONENT_WORDS = ["comentario", "comment"]
 ALL_COMMENTS_SELECTION = ["Todos los comentarios", "All comments"]
 RELEVANT_COMMENTS_SELECTION = ["Comentarios destacados", "Top Comments"]
 SEE_MORE_BUTTONS_TEXT = ["Ver más", "See more"]
-MORE_COMMENTS_TEXTS = ["respuetas anteriores", "respuesta anterior", "respueta", "anterior", "previous answers", "previous answer", "previous", "answer", "comentarios más", "más", "respuestas", "answers"] 
+MORE_COMMENTS_TEXTS = ["respuetas anteriores", "respuesta anterior", "respueta", "anterior", "previous answers", "previous answer", "previous", "answer", "comentarios más", "más", "respuestas", "answers", "comentarios anteriores", "previous comments"] 
 CURRENT_POSTS_TEXTS = ["Actividad más reciente", "Newest Activity"]
 NEWEST_POST_TEXTS = ["Publicaciones nuevas", "New Posts"]
 PLAY_VIDEO_TEXTS = ["Play Video", "Reproducir video"]
