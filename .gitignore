@@ -1,5 +1,6 @@
 credentials.txt
 *.json
+*.csv
 bs.html
 bsC.html
 __pycache__
