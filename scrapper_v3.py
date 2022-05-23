@@ -8,6 +8,7 @@ import json
 import re
 import sys
 import random
+import pandas as pd
 from constants import *
 from cssSelectors import *
 
@@ -135,34 +136,36 @@ class FacebookScrapper:
         self.newestPosts()
         groupPageLength = BROWSER.execute_script("window.scrollTo(0, document.body.scrollHeight);var lenOfPage=document.body.scrollHeight;return lenOfPage;")
         
-        self.scrollDown(15)
+        self.scrollDown(3)
 
     def getPosts(self,scrollCount):
         """Identify posts HTML elements"""
         posts = BROWSER.find_elements(By.CLASS_NAME, POSTS)
         for post in posts:
-            if post.id not in self.posts_selenium_ids:
-                self.seeMoreButtons(post)
-                post_object = list()
-                self.posts_selenium_ids.add(post.id)
-                ActionChains(BROWSER).move_to_element(post).perform()
-                post_link, post_id, date, hour = self.extractPostLinkId(post)
-                user_name, user_link, user_id = self.extractPostUser(post)
-                post_message = self.getPostMessage(post)
-                reactions, shares = self.extractReactionTotalAndShares(post)
-                total_comments, comments = self.extractTotalComments(post, date)
-                scrapped_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%Y-%m-%d %H:%M")
-                post_info = {"post_text":post_message, "post_link":post_link, "post_id":post_id, "user_name":user_name, "user_link":user_link, "user_id":user_id, 
-                    "date":date, "hour":hour, "reactions":reactions, "shares":shares, "total_comments":total_comments,  "comments":comments, 
-                    "group_name": self.group_name, "scrapped_date":scrapped_date} 
-                post_object.append(post_info)
-                if scrollCount != -1:
-                    self.writeInJSON(post_info)
-                else: #In case JSON file is Empty
-                    post_info = json.dumps(post_object, indent=4, ensure_ascii=False)
-                    self.createJSON(post_info)
-                self.recovered_posts += 1
-                print('Se han recuperado {0} posts'.format(self.recovered_posts))
+            try:
+                if post.id not in self.posts_selenium_ids:
+                    self.seeMoreButtons(post)
+                    post_object = list()
+                    self.posts_selenium_ids.add(post.id)
+                    ActionChains(BROWSER).move_to_element(post).perform()
+                    post_link, post_id, date, hour = self.extractPostLinkId(post)
+                    user_name, user_link, user_id = self.extractPostUser(post)
+                    post_message = self.getPostMessage(post)
+                    reactions, shares = self.extractReactionTotalAndShares(post)
+                    total_comments, comments = self.extractTotalComments(post, date, post_link, post_id)
+                    scrapped_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%Y-%m-%d %H:%M")
+                    post_info = {"post_text":post_message, "post_link":post_link, "post_id":post_id, "user_name":user_name, "user_link":user_link, "user_id":user_id, 
+                        "date":date, "hour":hour, "reactions":reactions, "shares":shares, "total_comments":total_comments,  "comments":comments, "type": "Post", 
+                        "group_name": self.group_name, "scrapped_date":scrapped_date} 
+                    post_object.append(post_info)
+                    if scrollCount != -1:
+                        self.writeInJSON(post_info)
+                    else: #In case JSON file is Empty
+                        post_info = json.dumps(post_object, indent=4, ensure_ascii=False)
+                        self.createJSON(post_info)
+                    self.recovered_posts += 1
+                    print('Se han recuperado {0} posts'.format(self.recovered_posts))
+            except: continue
 
     def getPostMessage(self,comm):
         """Obtain message contained in the group's post"""
@@ -331,9 +334,6 @@ class FacebookScrapper:
             else:
                 total_comments = comments_component.text.split()
                 total_comments = int(total_comments[0])
-        """if total_comments > 125:
-            self.defineCommentSelection(comm, "relevant")
-        elif total_comments > 0 and total_comments < 150:"""
         self.defineCommentSelection(comm, "all")
         time.sleep(1)
         comments = self.extractPostComments(comm, date)
@@ -367,7 +367,7 @@ class FacebookScrapper:
             else: return
         except: pass
 
-    def extractPostComments(self, comm, date):
+    def extractPostComments(self, comm, date, post_link, post_id):
         """Function to extract information from comments regarding any post"""
         ActionChains(BROWSER).move_to_element(comm)
         comments_area = comm.find_element(By.CSS_SELECTOR, COMMENTS_AREA)
@@ -398,7 +398,24 @@ class FacebookScrapper:
                 except:
                     pass
                 if comment_text == comment_reactions: comment_reactions = 0
-                post_comments.append({"author":comment_author, "text":comment_text, "reactions":comment_reactions, "estimated_date":estimated_date})
+                comment_author_link = comment.find_element(By.CSS_SELECTOR, COMMENT_AUTHOR_LINK)
+                beautify_data = bs(comment_author_link.get_attribute("href"), 'html.parser')
+                with open('./bsC.html',"w", encoding="utf-8") as file:
+                    file.write(str(beautify_data.prettify()))
+                    time.sleep(0.3)
+                with open('./bsC.html',"r", encoding="utf-8") as file:
+                    link = str(file.readline())
+                    try:
+                        id_start = link.index("user") + 5
+                        base_post_link = link[0:id_start]
+                        user_id = re.match(USER_ID_REGEX, link[id_start:]).group()
+                        user_link = base_post_link + str(user_id) + "/"
+                    except:
+                        diagonal_indexes = [i.start() for i in re.finditer("\/", link)]
+                        user_link = "https://facebook.com" + link[diagonal_indexes[2]:diagonal_indexes[3]]
+                        user_id = link[diagonal_indexes[2]+1:diagonal_indexes[3]-1]
+                scrapped_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%Y-%m-%d %H:%M")
+                post_comments.append({"user_name":comment_author, "user_link":user_link, "user_id":user_id, "text":comment_text, "reactions":comment_reactions, "estimated_date":estimated_date})
                 scrapped_comments += 1
                 if scrapped_comments >= 125: return post_comments
         return post_comments
@@ -435,6 +452,9 @@ class FacebookScrapper:
         self.login()
         startTime = time.time()
         self.getToGroup()
+        with open("./sampleNewFlow.json", encoding='utf-8') as file:
+            df = pd.read_json(file)
+        df.to_csv("./sampleNewFlow.csv", encoding='utf-8', index=False)
         print("El tiempo transcurrido para este ejercicio fue de: ", time.time() - startTime, " segundos")
         #BROWSER.close()
         sys.exit()
