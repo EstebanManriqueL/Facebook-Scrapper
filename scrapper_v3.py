@@ -1,6 +1,7 @@
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
 from bs4 import BeautifulSoup as bs
+import os
 import time
 import datetime
 import pytz
@@ -86,7 +87,7 @@ class FacebookScrapper:
             return int(comment_text_components.text)
         except: return 1
 
-    def newestPosts(self,):
+    def newestPosts(self):
         """Auxiliary function to configure FB's group to order posts based on publication date (descending order)"""
         newest_posts_possible_buttons = BROWSER.find_elements(By.CSS_SELECTOR, NEWEST_POSTS_POSSIBLE_BUTTONS)
         if len(newest_posts_possible_buttons) > 0:
@@ -116,11 +117,11 @@ class FacebookScrapper:
             json.dump(existing_data, outfile, indent=4, ensure_ascii=False)
             time.sleep(0.3)
 
-    def scrollDown(self, groupPageLength):
+    def scrollDown(self, groupPageLength, maximum):
         """Scroll down in the group's page"""
         scrollCount = -1
         match = False
-        while not match:
+        while not match and scrollCount < maximum:
             self.getPosts(scrollCount)
             time.sleep(random.randint(2,4))
             scrollCount += 1
@@ -136,7 +137,7 @@ class FacebookScrapper:
         self.newestPosts()
         groupPageLength = BROWSER.execute_script("window.scrollTo(0, document.body.scrollHeight);var lenOfPage=document.body.scrollHeight;return lenOfPage;")
         
-        self.scrollDown(3)
+        self.scrollDown(7, 5) #groupPageLength, 100
 
     def getPosts(self,scrollCount):
         """Identify posts HTML elements"""
@@ -151,10 +152,13 @@ class FacebookScrapper:
                     post_link, post_id, date, hour = self.extractPostLinkId(post)
                     user_name, user_link, user_id = self.extractPostUser(post)
                     post_message = self.getPostMessage(post)
+                    hashtags = [x for x in post_message.split(" ") if "#" in x]
+                    hashtags = ", ".join([str(h) for h in hashtags])
+                    print(hashtags)
                     reactions, shares = self.extractReactionTotalAndShares(post)
                     total_comments, comments = self.extractTotalComments(post, date, post_link, post_id, hour)
-                    scrapped_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%Y-%m-%d %H:%M")
-                    post_info = {"post_text":post_message, "post_link":post_link, "post_id":post_id, "user_name":user_name, "user_link":user_link, "user_id":user_id, 
+                    scrapped_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%d/%m/%yT%H:%M:%S.%f")[:-3]+"+0000"
+                    post_info = {"post_text":post_message, "hashtags":hashtags, "post_link":post_link, "post_id":post_id, "user_name":user_name, "user_link":user_link, "user_id":user_id, 
                         "date":date, "hour":hour, "reactions":reactions, "shares":shares, "total_comments":total_comments,  "comments":comments, "type": "Post", 
                         "group_name": self.group_name, "scrapped_date":scrapped_date} 
                     post_object.append(post_info)
@@ -419,8 +423,11 @@ class FacebookScrapper:
                         diagonal_indexes = [i.start() for i in re.finditer("\/", link)]
                         user_link = "https://facebook.com" + link[diagonal_indexes[2]:diagonal_indexes[3]]
                         user_id = link[diagonal_indexes[2]+1:diagonal_indexes[3]-1]
-                scrapped_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%Y-%m-%d %H:%M")
-                post_comments.append({"user_name":comment_author, "user_link":user_link, "user_id":user_id, "text":comment_text, "reactions":comment_reactions, "estimated_date":estimated_date})
+                hashtags = [x for x in comment_text.split(" ") if "#" in x]
+                hashtags = ", ".join([str(h) for h in hashtags])
+                scrapped_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%d/%m/%yT%H:%M:%S.%f")[:-3]+"+0000"
+                post_comments.append({"user_name":comment_author, "user_link":user_link, "user_id":user_id, "text":comment_text, "hashtags":hashtags, "reactions":comment_reactions, "estimated_date":estimated_date, 
+                                      "scrapped_date":scrapped_date})
                 scrapped_comments += 1
                 if scrapped_comments >= 125: return post_comments
         return post_comments
@@ -457,11 +464,13 @@ class FacebookScrapper:
         self.login()
         startTime = time.time()
         self.getToGroup()
-        with open("./sampleNewFlow.json", encoding='utf-8') as file:
+        """with open("./sampleNewFlow.json", encoding='utf-8') as file:
             df = pd.read_json(file)
-        df.to_csv("./sampleNewFlow.csv", encoding='utf-8', index=False)
+        df.to_csv("./sampleNewFlow.csv", encoding='utf-8', index=False)"""
         print("El tiempo transcurrido para este ejercicio fue de: ", time.time() - startTime, " segundos")
         BROWSER.close()
+        os.remove("./bs.html")
+        os.remove("./bsC.html")
         sys.exit()
 
 scrapper_instance = FacebookScrapper()
