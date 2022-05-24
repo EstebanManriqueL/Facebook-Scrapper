@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup as bs
 import os
 import time
 import datetime
+import dateutil.parser
 import pytz
 import json
 import re
@@ -19,6 +20,9 @@ class FacebookScrapper:
         self.recovered_posts = 0
         self.posts_selenium_ids = set()
         self.group_name = ""
+        self.from_date = None
+        self.to_date = None
+        self.metadata = None
 
     def read_credentials(self):
         """Set Facebook Credentials"""
@@ -137,7 +141,7 @@ class FacebookScrapper:
         self.newestPosts()
         groupPageLength = BROWSER.execute_script("window.scrollTo(0, document.body.scrollHeight);var lenOfPage=document.body.scrollHeight;return lenOfPage;")
         
-        self.scrollDown(7, 5) #groupPageLength, 100
+        self.scrollDown(groupPageLength, 1) #groupPageLength, 100
 
     def getPosts(self,scrollCount):
         """Identify posts HTML elements"""
@@ -154,7 +158,6 @@ class FacebookScrapper:
                     post_message = self.getPostMessage(post)
                     hashtags = [x for x in post_message.split(" ") if "#" in x]
                     hashtags = ", ".join([str(h) for h in hashtags])
-                    print(hashtags)
                     reactions, shares = self.extractReactionTotalAndShares(post)
                     total_comments, comments = self.extractTotalComments(post, date, post_link, post_id, hour)
                     scrapped_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%d/%m/%yT%H:%M:%S.%f")[:-3]+"+0000"
@@ -279,6 +282,13 @@ class FacebookScrapper:
                 month_p_options = list(map(lambda x: x.lower(), month_p_options))
                 for m in month_p_options:
                     if m in comm.lower():
+                        date = dateutil.parser.parse(day + "/" + MONTHS_DICTONARY[month] + "/" + year).strftime("%Y-%m-%d")
+                        if self.from_date is None:
+                            self.from_date = date
+                            self.to_date = date
+                        else:
+                            self.from_date = min(date, self.from_date)
+                            self.to_date = max(date, self.from_date)
                         return day + "/" + MONTHS_DICTONARY[month] + "/" + year, hour
         except Exception: return "01/01/1999", "00:00  a. m."
 
@@ -459,14 +469,28 @@ class FacebookScrapper:
             comment_date = comment_date.strftime("%d/%m/%Y")
         return comment_date + " " + hour
 
+    def writeCSVFirstRows(self):
+        """This function will emulate the first 7 rows from a BW file, later to be uploaded to Netai"""
+        self.metadata = [self.group_name, self.from_date, self.to_date, self.group_name, self.group_name]
+        commas = [","]
+        top_row = sorted(commas*len(CSV_COLUMNS)-3) 
+        top_row = "".join([str(c) for c in top_row]) + '\n'
+        top_rows = []
+        for row in range(len(self.metadata)):
+            top_rows.append(CSV_METADATA[row]+","+self.metadata[row]+","+top_row)
+        df = pd.DataFrame(columns=CSV_COLUMNS)
+        with open("./sampleNewFlow.csv", "w", encoding='utf-8') as file:
+            for line in top_rows:
+                file.write(line)
+            file.write("".join([str(c) for c in [","]*len(CSV_COLUMNS)-1]) + '\n') 
+            df.to_csv(file, index=False)
+
     def unifyingFunction(self):
         """Unique function to be executed in order for the scrapper to work"""
         self.login()
         startTime = time.time()
         self.getToGroup()
-        """with open("./sampleNewFlow.json", encoding='utf-8') as file:
-            df = pd.read_json(file)
-        df.to_csv("./sampleNewFlow.csv", encoding='utf-8', index=False)"""
+        self.writeCSVFirstRows()
         print("El tiempo transcurrido para este ejercicio fue de: ", time.time() - startTime, " segundos")
         BROWSER.close()
         os.remove("./bs.html")
@@ -475,3 +499,7 @@ class FacebookScrapper:
 
 scrapper_instance = FacebookScrapper()
 scrapper_instance.unifyingFunction()
+
+"""with open("./sampleNewFlow.json", encoding='utf-8') as file:
+    df = pd.read_json(file)
+df.to_csv("./sampleNewFlow.csv", encoding='utf-8', index=False)"""
