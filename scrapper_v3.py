@@ -142,7 +142,7 @@ class FacebookScrapper:
         """Identify posts HTML elements"""
         posts = BROWSER.find_elements(By.CLASS_NAME, POSTS)
         for post in posts:
-            try:
+            try: 
                 if post.id not in self.posts_selenium_ids:
                     self.seeMoreButtons(post)
                     post_object = list()
@@ -152,7 +152,7 @@ class FacebookScrapper:
                     user_name, user_link, user_id = self.extractPostUser(post)
                     post_message = self.getPostMessage(post)
                     reactions, shares = self.extractReactionTotalAndShares(post)
-                    total_comments, comments = self.extractTotalComments(post, date, post_link, post_id)
+                    total_comments, comments = self.extractTotalComments(post, date, post_link, post_id, hour)
                     scrapped_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%Y-%m-%d %H:%M")
                     post_info = {"post_text":post_message, "post_link":post_link, "post_id":post_id, "user_name":user_name, "user_link":user_link, "user_id":user_id, 
                         "date":date, "hour":hour, "reactions":reactions, "shares":shares, "total_comments":total_comments,  "comments":comments, "type": "Post", 
@@ -165,7 +165,7 @@ class FacebookScrapper:
                         self.createJSON(post_info)
                     self.recovered_posts += 1
                     print('Se han recuperado {0} posts'.format(self.recovered_posts))
-            except: continue
+            except: pass          
 
     def getPostMessage(self,comm):
         """Obtain message contained in the group's post"""
@@ -264,6 +264,11 @@ class FacebookScrapper:
                 day = "0"+ day
             year = re.search(DATE_YEAR_REGEX, comm).group()
             hour = re.search(HOUR_REGEX, comm).group()
+            if int(hour[0:2]) >= 12:
+                if int(hour[0:2]) != 12:
+                    hour.replace(hour[0:2], str(int(hour[0:2]) - 12), 1)
+                hour = hour + " p. m."
+            else: hour = hour + " a. m."   
             months_options = MONTHS_DICTONARY.keys()
             for month in months_options:
                 month_p_options = month.split("/")
@@ -271,7 +276,7 @@ class FacebookScrapper:
                 for m in month_p_options:
                     if m in comm.lower():
                         return day + "/" + MONTHS_DICTONARY[month] + "/" + year, hour
-        except Exception: return "01/01/1999", "00:00"
+        except Exception: return "01/01/1999", "00:00  a. m."
 
     def extractReactionTotalAndShares(self,comm):
         """Extract post's total reactions and shares"""
@@ -315,7 +320,7 @@ class FacebookScrapper:
         total_number = total_number.replace(",","")
         return int(total_number)
 
-    def extractTotalComments(self, comm, date):
+    def extractTotalComments(self, comm, date, post_link, post_id, hour):
         """Extract total amount of comments, as well as its information"""
         total_comments = 0
         comments = []
@@ -336,7 +341,7 @@ class FacebookScrapper:
                 total_comments = int(total_comments[0])
         self.defineCommentSelection(comm, "all")
         time.sleep(1)
-        comments = self.extractPostComments(comm, date)
+        comments = self.extractPostComments(comm, date, post_link, post_id, hour)
         return total_comments, comments
 
     def extractCommentsEstimateOver1K(self,comm):
@@ -367,7 +372,7 @@ class FacebookScrapper:
             else: return
         except: pass
 
-    def extractPostComments(self, comm, date, post_link, post_id):
+    def extractPostComments(self, comm, date, post_link, post_id, hour):
         """Function to extract information from comments regarding any post"""
         ActionChains(BROWSER).move_to_element(comm)
         comments_area = comm.find_element(By.CSS_SELECTOR, COMMENTS_AREA)
@@ -385,7 +390,7 @@ class FacebookScrapper:
             if (len(comment.text.splitlines()) > 1):
                 self.seeMoreButtons(comment)
                 date_component = comment.find_element(By.CLASS_NAME, POST_COMMENT_DATE)
-                estimated_date = self.extractCommentEstimatedDate(date_component, date)
+                estimated_date = self.extractCommentEstimatedDate(date_component, date, hour)
                 comment_author = comment.text.splitlines()[0]
                 try:
                     comment_text = comment.find_element(By.CSS_SELECTOR, POST_COMMENT_TEXT).text
@@ -420,7 +425,7 @@ class FacebookScrapper:
                 if scrapped_comments >= 125: return post_comments
         return post_comments
 
-    def extractCommentEstimatedDate(self, date_component, date):
+    def extractCommentEstimatedDate(self, date_component, date, hour):
         """This function will calculate the estimated date in which every registered comment was posted"""
         comment_date = ""
         text = re.search(COMMENT_DATE_REGEX, date_component.text).group()
@@ -445,7 +450,7 @@ class FacebookScrapper:
         else: 
             comment_date = (datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")) - datetime.timedelta(quantity_time*30))
             comment_date = comment_date.strftime("%d/%m/%Y")
-        return comment_date
+        return comment_date + " " + hour
 
     def unifyingFunction(self):
         """Unique function to be executed in order for the scrapper to work"""
@@ -456,7 +461,7 @@ class FacebookScrapper:
             df = pd.read_json(file)
         df.to_csv("./sampleNewFlow.csv", encoding='utf-8', index=False)
         print("El tiempo transcurrido para este ejercicio fue de: ", time.time() - startTime, " segundos")
-        #BROWSER.close()
+        BROWSER.close()
         sys.exit()
 
 scrapper_instance = FacebookScrapper()
