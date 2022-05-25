@@ -11,6 +11,7 @@ import re
 import sys
 import random
 import pandas as pd
+import warnings
 from constants import *
 from cssSelectors import *
 
@@ -141,7 +142,7 @@ class FacebookScrapper:
         self.newestPosts()
         groupPageLength = BROWSER.execute_script("window.scrollTo(0, document.body.scrollHeight);var lenOfPage=document.body.scrollHeight;return lenOfPage;")
         
-        self.scrollDown(groupPageLength, 1) #groupPageLength, 100
+        self.scrollDown(groupPageLength, 5) #groupPageLength, 100
 
     def getPosts(self,scrollCount):
         """Identify posts HTML elements"""
@@ -162,7 +163,7 @@ class FacebookScrapper:
                     total_comments, comments = self.extractTotalComments(post, date, post_link, post_id, hour)
                     scrapped_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%d/%m/%yT%H:%M:%S.%f")[:-3]+"+0000"
                     post_info = {"post_text":post_message, "hashtags":hashtags, "post_link":post_link, "post_id":post_id, "user_name":user_name, "user_link":user_link, "user_id":user_id, 
-                        "date":date, "hour":hour, "reactions":reactions, "shares":shares, "total_comments":total_comments,  "comments":comments, "type": "Post", 
+                        "date":date, "hour":hour, "reactions":reactions, "shares":shares, "total_comments":total_comments,  "comments":comments, "type": "post", 
                         "group_name": self.group_name, "scrapped_date":scrapped_date} 
                     post_object.append(post_info)
                     if scrollCount != -1:
@@ -436,8 +437,8 @@ class FacebookScrapper:
                 hashtags = [x for x in comment_text.split(" ") if "#" in x]
                 hashtags = ", ".join([str(h) for h in hashtags])
                 scrapped_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%d/%m/%yT%H:%M:%S.%f")[:-3]+"+0000"
-                post_comments.append({"user_name":comment_author, "user_link":user_link, "user_id":user_id, "text":comment_text, "hashtags":hashtags, "reactions":comment_reactions, "estimated_date":estimated_date, 
-                                      "scrapped_date":scrapped_date})
+                post_comments.append({"user_name":comment_author, "user_link":user_link, "user_id":user_id, "post_text":comment_text, "hashtags":hashtags, "reactions":comment_reactions, "estimated_date":estimated_date, 
+                                      "type": "reply", "scrapped_date":scrapped_date})
                 scrapped_comments += 1
                 if scrapped_comments >= 125: return post_comments
         return post_comments
@@ -473,17 +474,61 @@ class FacebookScrapper:
         """This function will emulate the first 7 rows from a BW file, later to be uploaded to Netai"""
         self.metadata = [self.group_name, self.from_date, self.to_date, self.group_name, self.group_name]
         commas = [","]
-        top_row = sorted(commas*len(CSV_COLUMNS)-3) 
+        top_row = sorted(commas*(len(CSV_COLUMNS)-2)) 
         top_row = "".join([str(c) for c in top_row]) + '\n'
         top_rows = []
         for row in range(len(self.metadata)):
             top_rows.append(CSV_METADATA[row]+","+self.metadata[row]+","+top_row)
-        df = pd.DataFrame(columns=CSV_COLUMNS)
-        with open("./sampleNewFlow.csv", "w", encoding='utf-8') as file:
+        publications = self.JSONToCSV()
+        with open("./sampleNewFlow.csv", "w", encoding='utf-8', newline='') as file:
             for line in top_rows:
                 file.write(line)
-            file.write("".join([str(c) for c in [","]*len(CSV_COLUMNS)-1]) + '\n') 
-            df.to_csv(file, index=False)
+            file.write("".join([str(c) for c in [","]*(len(CSV_COLUMNS))]) + '\n') 
+            publications.to_csv(file, index=False)
+        
+    def JSONToCSV(self):
+        publications = pd.DataFrame(columns=CSV_COLUMNS)
+        json_file = open("./sampleNewFlow.json", encoding="utf-8")
+        json_info = json.load(json_file)
+        for publication in json_info:
+            post_id = publication["post_id"]
+            post_link = publication["post_link"]
+            date = publication["date"] + " " + publication["hour"]
+            comments = publication["total_comments"]
+            shares = publication["shares"]
+            data = [post_id, date, post_link, comments, shares]
+            self.extractInfoFromJSON(publication, publications, data)
+            if publication["comments"] != []:
+                for comment in publication["comments"]:
+                    data = [post_id, comment["estimated_date"], post_link, 0, 0]
+                    self.extractInfoFromJSON(comment, publications, data)
+        return publications
+    
+    def extractInfoFromJSON(self, publication, publications, json_data):
+        default_row = [""]*(len(CSV_COLUMNS))
+        publications.loc[publications.shape[0]] = default_row
+        row = int(publications.shape[0])-1
+        publications.iloc[row, CSV_COLUMNS.index("Query Id")] = json_data[0]
+        publications.iloc[row, CSV_COLUMNS.index("Query Name")] = self.group_name
+        publications.iloc[row, CSV_COLUMNS.index("Date")] = json_data[1]
+        if len(publication["post_text"])> 280: publications.iloc[row, CSV_COLUMNS.index("Title")] = publication["post_text"][0:277] + "..."
+        else: publications.iloc[row, CSV_COLUMNS.index("Title")] = publication["post_text"]    
+        publications.iloc[row, [CSV_COLUMNS.index("Url"), CSV_COLUMNS.index("Original Url")]] = json_data[2]
+        publications.iloc[row, CSV_COLUMNS.index("Domain")] = "facebook.com"
+        publications.iloc[row, [CSV_COLUMNS.index("Page Type"), CSV_COLUMNS.index("Thread Entry Type")]] = publication["type"]
+        publications.iloc[row, CSV_COLUMNS.index("Account Type")] = "Group" #This will vary as FB pages are included in the scrapper
+        publications.iloc[row, CSV_COLUMNS.index("Added")] = publication["scrapped_date"]
+        publications.iloc[row, [CSV_COLUMNS.index("Author"), CSV_COLUMNS.index("Full Name")]] = publication["user_name"]
+        publications.iloc[row, CSV_COLUMNS.index("Avatar")] = publication["user_link"]
+        publications.iloc[row, CSV_COLUMNS.index("Facebook Author ID")] = publication["user_id"]
+        publications.iloc[row, CSV_COLUMNS.index("Facebook Comments")] = json_data[3]
+        publications.iloc[row, CSV_COLUMNS.index("Facebook Likes")] = publication["reactions"]
+        publications.iloc[row, CSV_COLUMNS.index("Facebook Shares")] = json_data[4]
+        publications.iloc[row, CSV_COLUMNS.index("Full Text")] = publication["post_text"]
+        publications.iloc[row, CSV_COLUMNS.index("Hashtags")] = publication["hashtags"]
+        if publication["type"] == "reply": 
+            publications.iloc[row, CSV_COLUMNS.index("Thread Author")] = publication["user_name"]
+            publications.iloc[row, CSV_COLUMNS.index("Thread Created Date")] = json_data[1]
 
     def unifyingFunction(self):
         """Unique function to be executed in order for the scrapper to work"""
@@ -491,15 +536,13 @@ class FacebookScrapper:
         startTime = time.time()
         self.getToGroup()
         self.writeCSVFirstRows()
-        print("El tiempo transcurrido para este ejercicio fue de: ", time.time() - startTime, " segundos")
+        print("El tiempo transcurrido para este ejercicio fue de: ", round((time.time() - startTime), 2), " segundos")
         BROWSER.close()
         os.remove("./bs.html")
         os.remove("./bsC.html")
         sys.exit()
 
+warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
+
 scrapper_instance = FacebookScrapper()
 scrapper_instance.unifyingFunction()
-
-"""with open("./sampleNewFlow.json", encoding='utf-8') as file:
-    df = pd.read_json(file)
-df.to_csv("./sampleNewFlow.csv", encoding='utf-8', index=False)"""
