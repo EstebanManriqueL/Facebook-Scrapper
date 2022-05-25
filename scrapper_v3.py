@@ -1,3 +1,4 @@
+from operator import index
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
 from bs4 import BeautifulSoup as bs
@@ -142,7 +143,7 @@ class FacebookScrapper:
         self.newestPosts()
         groupPageLength = BROWSER.execute_script("window.scrollTo(0, document.body.scrollHeight);var lenOfPage=document.body.scrollHeight;return lenOfPage;")
         
-        self.scrollDown(groupPageLength, 5) #groupPageLength, 100
+        self.scrollDown(groupPageLength, 1) #groupPageLength, 100
 
     def getPosts(self,scrollCount):
         """Identify posts HTML elements"""
@@ -161,7 +162,7 @@ class FacebookScrapper:
                     hashtags = ", ".join([str(h) for h in hashtags])
                     reactions, shares = self.extractReactionTotalAndShares(post)
                     total_comments, comments = self.extractTotalComments(post, date, post_link, post_id, hour)
-                    scrapped_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%d/%m/%yT%H:%M:%S.%f")[:-3]+"+0000"
+                    scrapped_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]+"+0000"
                     post_info = {"post_text":post_message, "hashtags":hashtags, "post_link":post_link, "post_id":post_id, "user_name":user_name, "user_link":user_link, "user_id":user_id, 
                         "date":date, "hour":hour, "reactions":reactions, "shares":shares, "total_comments":total_comments,  "comments":comments, "type": "post", 
                         "group_name": self.group_name, "scrapped_date":scrapped_date} 
@@ -272,11 +273,6 @@ class FacebookScrapper:
                 day = "0"+ day
             year = re.search(DATE_YEAR_REGEX, comm).group()
             hour = re.search(HOUR_REGEX, comm).group()
-            if int(hour[0:2]) >= 12:
-                if int(hour[0:2]) != 12:
-                    hour.replace(hour[0:2], str(int(hour[0:2]) - 12), 1)
-                hour = hour + " p. m."
-            else: hour = hour + " a. m."   
             months_options = MONTHS_DICTONARY.keys()
             for month in months_options:
                 month_p_options = month.split("/")
@@ -290,8 +286,9 @@ class FacebookScrapper:
                         else:
                             self.from_date = min(date, self.from_date)
                             self.to_date = max(date, self.from_date)
-                        return day + "/" + MONTHS_DICTONARY[month] + "/" + year, hour
-        except Exception: return "01/01/1999", "00:00  a. m."
+                        return year + "-" + MONTHS_DICTONARY[month] + "-" + day, hour
+                        #return day + "/" + MONTHS_DICTONARY[month] + "/" + year, hour
+        except Exception: return "1999-01-01", "00:00"
 
     def extractReactionTotalAndShares(self,comm):
         """Extract post's total reactions and shares"""
@@ -436,7 +433,7 @@ class FacebookScrapper:
                         user_id = link[diagonal_indexes[2]+1:diagonal_indexes[3]-1]
                 hashtags = [x for x in comment_text.split(" ") if "#" in x]
                 hashtags = ", ".join([str(h) for h in hashtags])
-                scrapped_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%d/%m/%yT%H:%M:%S.%f")[:-3]+"+0000"
+                scrapped_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]+"+0000"
                 post_comments.append({"user_name":comment_author, "user_link":user_link, "user_id":user_id, "post_text":comment_text, "hashtags":hashtags, "reactions":comment_reactions, "estimated_date":estimated_date, 
                                       "type": "reply", "scrapped_date":scrapped_date})
                 scrapped_comments += 1
@@ -448,27 +445,27 @@ class FacebookScrapper:
         comment_date = ""
         text = re.search(COMMENT_DATE_REGEX, date_component.text).group()
         quantity_time = int(text.split()[0])
-        date = datetime.datetime.strptime(date, '%d/%m/%Y')
         if "año" in text or "y" in text:
             comment_date = (datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")) - datetime.timedelta(quantity_time*365))
-            comment_date = comment_date.strftime("%d/%m/%Y")
+            comment_date = comment_date.strftime("%Y-%m-%d")
         elif "sem" in text or "wk" in text:
             comment_date = (datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")) - datetime.timedelta(quantity_time*7))
-            comment_date = comment_date.strftime("%d/%m/%Y")
+            comment_date = comment_date.strftime("%Y-%m-%d")
         elif "d" in text:
             comment_date = (datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")) - datetime.timedelta(quantity_time))
-            comment_date = comment_date.strftime("%d/%m/%Y")
+            comment_date = comment_date.strftime("%Y-%m-%d")
         elif "h" in text:
             current_hour = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%H")
             current_hour = int(current_hour)
             if current_hour - quantity_time < 0:
                 comment_date = (datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")) - datetime.timedelta(1))
-                comment_date = comment_date.strftime("%d/%m/%Y")
-            else: comment_date = datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")).strftime("%d/%m/%Y")
+                comment_date = comment_date.strftime("%Y-%m-%d")
+            else: comment_date = date 
+        elif "min" in text: comment_date = date #falta "m en ingles" y segundos
         else: 
             comment_date = (datetime.datetime.now(tz=pytz.timezone("Etc/GMT+5")) - datetime.timedelta(quantity_time*30))
-            comment_date = comment_date.strftime("%d/%m/%Y")
-        return comment_date + " " + hour
+            comment_date = comment_date.strftime("%Y-%m-%d")
+        return comment_date + " " + hour + ":00.0"
 
     def writeCSVFirstRows(self):
         """This function will emulate the first 7 rows from a BW file, later to be uploaded to Netai"""
@@ -478,12 +475,12 @@ class FacebookScrapper:
         top_row = "".join([str(c) for c in top_row]) + '\n'
         top_rows = []
         for row in range(len(self.metadata)):
-            top_rows.append(CSV_METADATA[row]+","+self.metadata[row]+","+top_row)
+            top_rows.append(CSV_METADATA[row]+","+self.metadata[row] + '\n')#+","+top_row
         publications = self.JSONToCSV()
         with open("./sampleNewFlow.csv", "w", encoding='utf-8', newline='') as file:
             for line in top_rows:
                 file.write(line)
-            file.write("".join([str(c) for c in [","]*(len(CSV_COLUMNS))]) + '\n') 
+            file.write('\n') #"".join([str(c) for c in [","]*(len(CSV_COLUMNS))]) + 
             publications.to_csv(file, index=False)
         
     def JSONToCSV(self):
@@ -493,7 +490,7 @@ class FacebookScrapper:
         for publication in json_info:
             post_id = publication["post_id"]
             post_link = publication["post_link"]
-            date = publication["date"] + " " + publication["hour"]
+            date = publication["date"] + " " + publication["hour"] + ":00.0"
             comments = publication["total_comments"]
             shares = publication["shares"]
             data = [post_id, date, post_link, comments, shares]
@@ -505,30 +502,36 @@ class FacebookScrapper:
         return publications
     
     def extractInfoFromJSON(self, publication, publications, json_data):
-        default_row = [""]*(len(CSV_COLUMNS))
+        default_row = default_row = [""]*(len(CSV_COLUMNS))
         publications.loc[publications.shape[0]] = default_row
         row = int(publications.shape[0])-1
-        publications.iloc[row, CSV_COLUMNS.index("Query Id")] = json_data[0]
+        publications.iloc[row, CSV_COLUMNS.index("Query Id")] = "2000882456"#(json_data[0])
         publications.iloc[row, CSV_COLUMNS.index("Query Name")] = self.group_name
         publications.iloc[row, CSV_COLUMNS.index("Date")] = json_data[1]
         if len(publication["post_text"])> 280: publications.iloc[row, CSV_COLUMNS.index("Title")] = publication["post_text"][0:277] + "..."
         else: publications.iloc[row, CSV_COLUMNS.index("Title")] = publication["post_text"]    
         publications.iloc[row, [CSV_COLUMNS.index("Url"), CSV_COLUMNS.index("Original Url")]] = json_data[2]
-        publications.iloc[row, CSV_COLUMNS.index("Domain")] = "facebook.com"
-        publications.iloc[row, [CSV_COLUMNS.index("Page Type"), CSV_COLUMNS.index("Thread Entry Type")]] = publication["type"]
-        publications.iloc[row, CSV_COLUMNS.index("Account Type")] = "Group" #This will vary as FB pages are included in the scrapper
-        publications.iloc[row, CSV_COLUMNS.index("Added")] = publication["scrapped_date"]
-        publications.iloc[row, [CSV_COLUMNS.index("Author"), CSV_COLUMNS.index("Full Name")]] = publication["user_name"]
-        publications.iloc[row, CSV_COLUMNS.index("Avatar")] = publication["user_link"]
-        publications.iloc[row, CSV_COLUMNS.index("Facebook Author ID")] = publication["user_id"]
+        publications.iloc[row, CSV_COLUMNS.index("Domain")] = "twitter.com"
+        publications.iloc[row, [CSV_COLUMNS.index("Page Type")]] = "twitter"
+        publications.iloc[row, CSV_COLUMNS.index("Account Type")] = "individual"
+        publications.iloc[row, [CSV_COLUMNS.index("Added"), CSV_COLUMNS.index("Updated")]] = publication["scrapped_date"]
+        publications.iloc[row, CSV_COLUMNS.index("Author")] = publication["user_name"].replace(" ","")
+        publications.iloc[row, [CSV_COLUMNS.index("Mentioned Authors")]] = "@"+publication["user_name"].replace(" ","")
+        publications.iloc[row, [CSV_COLUMNS.index("Full Name")]] = publication["user_name"].replace(" ","") + " ({0})".format(publication["user_name"].replace(" ",""))
+        #publications.iloc[row, CSV_COLUMNS.index("Avatar")] = publication["user_link"]
+        publications.iloc[row, [CSV_COLUMNS.index("Facebook Author ID"), CSV_COLUMNS.index("Twitter Author ID")]] = publication["user_id"]
         publications.iloc[row, CSV_COLUMNS.index("Facebook Comments")] = json_data[3]
-        publications.iloc[row, CSV_COLUMNS.index("Facebook Likes")] = publication["reactions"]
-        publications.iloc[row, CSV_COLUMNS.index("Facebook Shares")] = json_data[4]
+        publications.iloc[row, [CSV_COLUMNS.index("Facebook Likes")]] = publication["reactions"]
+        publications.iloc[row, [CSV_COLUMNS.index("Facebook Shares"), CSV_COLUMNS.index("Twitter Retweets")]] = json_data[4]
         publications.iloc[row, CSV_COLUMNS.index("Full Text")] = publication["post_text"]
         publications.iloc[row, CSV_COLUMNS.index("Hashtags")] = publication["hashtags"]
         if publication["type"] == "reply": 
-            publications.iloc[row, CSV_COLUMNS.index("Thread Author")] = publication["user_name"]
-            publications.iloc[row, CSV_COLUMNS.index("Thread Created Date")] = json_data[1]
+            publications.iloc[row, CSV_COLUMNS.index("Thread Author")] = publication["user_name"].replace(" ","")
+            publications.iloc[row, CSV_COLUMNS.index("Thread Created Date")] =  publication["scrapped_date"]
+            publications.iloc[row, CSV_COLUMNS.index("Thread Entry Type")] =  "reply"
+        else: publications.iloc[row, CSV_COLUMNS.index("Thread Entry Type")] = "post"
+        publications.iloc[row, [CSV_COLUMNS.index("Reach (new)")]] = int(publication["reactions"]) + int(json_data[3]) + int(json_data[4])
+        publications.iloc[row, [CSV_COLUMNS.index("Page Type Name")]] = "Twitter"""
 
     def unifyingFunction(self):
         """Unique function to be executed in order for the scrapper to work"""
@@ -546,3 +549,5 @@ warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
 
 scrapper_instance = FacebookScrapper()
 scrapper_instance.unifyingFunction()
+
+
