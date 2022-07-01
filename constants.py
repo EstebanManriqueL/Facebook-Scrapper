@@ -11,7 +11,7 @@ OPTION.add_argument("--log-level=3")
 OPTION.add_argument("--headless")
 BROWSER = webdriver.Chrome(executable_path="./chromedriver", options=OPTION)
 
-TEST_GROUP = "https://www.facebook.com/groups/681316119297894"    #"https://www.facebook.com/groups/1405665609742213" #https://www.facebook.com/groups/681316119297894 #"https://www.facebook.com/groups/bandolerosfrases"
+TEST_GROUP = "https://www.facebook.com/acafremin"    #"https://www.facebook.com/groups/1405665609742213" #https://www.facebook.com/groups/681316119297894 #"https://www.facebook.com/groups/bandolerosfrases"
 
 PAID_PARTNERSHIPS_WORDS = ["Paid", "partnership", "Colaboracion", "pagada"]
 SHARE_COMPONENT_WORDS = ["share", "compartido"]

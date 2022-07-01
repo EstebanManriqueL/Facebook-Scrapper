@@ -236,8 +236,12 @@ class FacebookScrapper:
                 link = str(file.readline())
                 id_start = link.index("posts") + 6
                 base_post_link = link[0:id_start]
-                post_id = re.match(POST_ID_REGEX, link[id_start:]).group()
-                post_link = base_post_link + str(post_id) + "/"
+                try:
+                    post_id = re.match(POST_ID_REGEX, link[id_start:]).group()
+                    post_link = base_post_link + str(post_id) + "/"
+                except:
+                    post_id = link[id_start:]
+                    post_link = base_post_link + str(post_id) + "/"
                 return post_link, post_id, date, hour 
         return "", "", date, hour  
 
@@ -261,8 +265,12 @@ class FacebookScrapper:
                         user_link = base_post_link + str(user_id) + "/"
                     except:
                         diagonal_indexes = [i.start() for i in re.finditer("\/", link)]
-                        user_link = "https://facebook.com" + link[diagonal_indexes[2]:diagonal_indexes[3]]
-                        user_id = link[diagonal_indexes[2]+1:diagonal_indexes[3]-1]
+                        if len(diagonal_indexes) < 4:
+                            user_link = "https://facebook.com/" + user_name
+                            user_id = user_name
+                        else:  
+                            user_link = "https://facebook.com" + link[diagonal_indexes[2]:diagonal_indexes[3]]
+                            user_id = link[diagonal_indexes[2]+1:diagonal_indexes[3]-1]
                     return user_name, user_link, user_id  
 
     def extractPostDateHour(self,comm):
@@ -541,8 +549,10 @@ class FacebookScrapper:
         self.writeCSVFirstRows()
         print("El tiempo transcurrido para este ejercicio fue de: ", round((time.time() - startTime), 2), " segundos")
         BROWSER.close()
-        os.remove("./bs.html")
-        os.remove("./bsC.html")
+        try: os.remove("./bs.html")
+        except: pass
+        try: os.remove("./bsC.html")
+        except: pass
         sys.exit()
 
 warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
